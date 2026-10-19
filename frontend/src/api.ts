@@ -1,4 +1,6 @@
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL ??
+  (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 export type TransactionStatus = "PROCESSING" | "PROCESSED";
 
@@ -36,7 +38,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function getHealth(): Promise<{ status: string; current_time: string }> {
-  return request("/");
+  return request("/healthz");
 }
 
 export function submitTransaction(payload: TransactionPayload): Promise<{

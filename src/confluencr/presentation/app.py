@@ -1,8 +1,10 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from confluencr.application.services import TransactionProcessingService
 from confluencr.core.config import Settings, get_settings
@@ -48,6 +50,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.transaction_processor = processor
     app.state.engine = engine
     app.include_router(router)
+
+    frontend_dist = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+    if frontend_dist.is_dir():
+        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
 
     return app
 

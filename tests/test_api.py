@@ -21,7 +21,7 @@ def _wait_for_status(client: TestClient, transaction_id: str, expected: str) -> 
 
 
 def test_health_check(client: TestClient) -> None:
-    response = client.get("/")
+    response = client.get("/healthz")
 
     assert response.status_code == 200
     assert response.json()["status"] == "HEALTHY"

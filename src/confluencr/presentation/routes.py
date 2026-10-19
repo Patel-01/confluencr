@@ -16,7 +16,7 @@ from confluencr.presentation.schemas import (
 router = APIRouter()
 
 
-@router.get("/", response_model=HealthResponse)
+@router.get("/healthz", response_model=HealthResponse)
 def health_check() -> HealthResponse:
     return HealthResponse(status="HEALTHY", current_time=datetime.now(UTC))
 

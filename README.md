@@ -33,7 +33,7 @@ Copy-Item .env.example .env
 uvicorn confluencr.main:app --reload
 ```
 
-The service starts at `http://localhost:8000`. OpenAPI documentation is available at `/docs`.
+The API starts at `http://localhost:8000`. The health endpoint is `/healthz`, and OpenAPI documentation is available at `/docs`.
 
 ## Run the frontend
 
@@ -46,6 +46,8 @@ npm run dev
 ```
 
 The React client starts at `http://localhost:5173`. Set `VITE_API_BASE_URL` if the API is running somewhere other than `http://localhost:8000`.
+
+For production, the Docker image builds the React bundle and FastAPI serves it from the same origin. This keeps the deployed assessment app to one Render web service.
 
 ## API examples
 
