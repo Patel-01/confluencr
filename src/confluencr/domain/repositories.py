@@ -1,0 +1,14 @@
+from typing import Protocol
+
+from confluencr.domain.transaction import Transaction
+
+
+class TransactionRepository(Protocol):
+    def get(self, transaction_id: str) -> Transaction | None: ...
+
+    def create_if_absent(self, transaction: Transaction) -> bool: ...
+
+    def mark_processed(self, transaction_id: str) -> Transaction | None: ...
+
+    def close(self) -> None: ...
+
