@@ -19,7 +19,7 @@ const initialForm = {
 const trackedTransactionStorageKey = "confluencr.tracked_transaction_id";
 
 function getStoredTrackedTransactionId(): string {
-  return window.localStorage.getItem(trackedTransactionStorageKey) ?? "";
+  return window.localStorage.getItem(trackedTransactionStorageKey) ?? initialForm.transaction_id;
 }
 
 function App() {
