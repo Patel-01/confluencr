@@ -2,10 +2,8 @@ import { FormEvent, useEffect, useState } from "react";
 
 import {
   getHealth,
-  getSessionSummary,
   getTransaction,
   submitTransaction,
-  SessionSummary,
   Transaction,
 } from "./api";
 
@@ -29,31 +27,11 @@ function App() {
   const [health, setHealth] = useState("Checking API...");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
 
   useEffect(() => {
     getHealth()
       .then((result) => setHealth(result.status))
       .catch(() => setHealth("OFFLINE"));
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const summary = await getSessionSummary();
-        if (!cancelled) setSessionSummary(summary);
-      } catch {
-        // Session analytics should never interrupt the transaction experience.
-      }
-    };
-
-    void refresh();
-    const intervalId = window.setInterval(refresh, 5000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
   }, []);
 
   useEffect(() => {
@@ -187,29 +165,19 @@ function App() {
         </section>
       </section>
 
-      <section className="card session-card">
+      <section className="card assessment-card">
         <div className="card-heading">
           <div>
-            <p className="section-label">YOUR SESSION</p>
-            <h2>Activity on this device</h2>
+            <p className="section-label">ASSESSMENT FLOW</p>
+            <h2>What this console verifies</h2>
           </div>
-          <span className="session-badge">Anonymous</span>
+          <a className="docs-link" href="/docs" target="_blank" rel="noreferrer">Open API docs ↗</a>
         </div>
-        <div className="session-metrics">
-          <div>
-            <span className="metric-value">{sessionSummary?.total_api_calls ?? 0}</span>
-            <span className="metric-label">API calls</span>
-          </div>
-          <div>
-            <span className="metric-value">{sessionSummary?.recent_activity.length ?? 0}</span>
-            <span className="metric-label">Recent events</span>
-          </div>
-          <div>
-            <span className="metric-value">{sessionSummary?.last_seen_at ? new Date(sessionSummary.last_seen_at).toLocaleTimeString() : "—"}</span>
-            <span className="metric-label">Last active</span>
-          </div>
+        <div className="assessment-steps">
+          <div><span>1</span><strong>202 Accepted</strong><p>Webhook is acknowledged immediately.</p></div>
+          <div><span>2</span><strong>Background processing</strong><p>Transaction remains visible while the worker runs.</p></div>
+          <div><span>3</span><strong>Processed result</strong><p>Polling confirms the final persisted status.</p></div>
         </div>
-        <p className="session-note">This activity is tied to this browser only and contains no sensitive payload data.</p>
       </section>
     </main>
   );
