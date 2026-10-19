@@ -105,6 +105,7 @@ function App() {
           <label>
             Transaction ID
             <input value={form.transaction_id} onChange={(event) => updateField("transaction_id", event.target.value)} />
+            <small className="field-hint">Use a new ID for a new transaction. Reusing an ID is intentionally idempotent.</small>
           </label>
           <div className="two-columns">
             <label>

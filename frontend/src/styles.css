@@ -26,6 +26,7 @@ h2 { margin-bottom: 0; color: #17213b; font-size: 21px; letter-spacing: -.02em; 
 .card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
 .method-badge { padding: 8px 10px; color: #5e68da; background: #eff0ff; }
 label { display: grid; gap: 8px; margin-bottom: 18px; color: #59647e; font-size: 13px; font-weight: 700; }
+.field-hint { color: #7d879d; font-size: 11px; font-weight: 500; line-height: 1.4; }
 input { width: 100%; padding: 13px 14px; border: 1px solid #dfe3ee; border-radius: 11px; color: #202b48; background: #fbfcff; outline: none; transition: border-color .2s, box-shadow .2s; }
 input:focus { border-color: #7480ee; box-shadow: 0 0 0 4px rgba(116,128,238,.12); }
 .two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
