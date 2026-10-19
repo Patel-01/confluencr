@@ -18,7 +18,7 @@ infrastructure  domain ports
 - `infrastructure` contains SQLAlchemy persistence and the in-process worker implementation.
 - `presentation` contains HTTP schemas, routes, dependency wiring, and application composition.
 
-The in-process worker is intentionally replaceable. It is useful for local development and code review, but a durable queue/worker deployment will be needed before production deployment because in-memory jobs do not survive process restarts.
+The in-process worker is intentionally replaceable. Transactions are persisted before acknowledgement, and `PROCESSING` rows are re-queued when the service starts, so a restart does not lose accepted work. A durable external queue/worker would still be the next scale-out step for high-volume production workloads.
 
 The shared cloud database is Supabase PostgreSQL. For local development, SQLite remains the default. To use Supabase, set `DATABASE_URL` to the PostgreSQL connection string from the Supabase dashboard and keep that value server-side.
 
@@ -33,7 +33,7 @@ Copy-Item .env.example .env
 uvicorn confluencr.main:app --reload
 ```
 
-The API starts at `http://localhost:8000`. The health endpoint is `/healthz`, and OpenAPI documentation is available at `/docs`.
+The API starts at `http://localhost:8000`. `GET /` is the assessment health endpoint, `/healthz` is the deployment health endpoint, and OpenAPI documentation is available at `/docs`.
 
 ## Run the frontend
 
@@ -47,7 +47,7 @@ npm run dev
 
 The React client starts at `http://localhost:5173`. Set `VITE_API_BASE_URL` if the API is running somewhere other than `http://localhost:8000`.
 
-For production, the Docker image builds the React bundle and FastAPI serves it from the same origin. This keeps the deployed assessment app to one Render web service.
+For production, the Docker image builds the React bundle and FastAPI serves it from the same origin when the browser requests HTML. API clients requesting JSON from `/` still receive the assessment health response. This keeps the deployed assessment app to one Render web service.
 
 ## API examples
 
@@ -83,4 +83,14 @@ npx.cmd supabase db push
 ```
 
 Do not put a Supabase service-role key or database password in `VITE_` variables or commit them to Git.
+
+## Render deployment
+
+The public deployment uses one Docker web service. The image builds the React frontend, then FastAPI serves the frontend and API from the same origin:
+
+- App: `https://confluencr-api.onrender.com`
+- Health: `https://confluencr-api.onrender.com/healthz`
+- API docs: `https://confluencr-api.onrender.com/docs`
+
+Set the Render service variable `DATABASE_URL` to the Supabase PostgreSQL connection string before using the deployment for durable cloud storage. Without it, the service uses its local SQLite fallback, which is suitable only for a short-lived demo.
 

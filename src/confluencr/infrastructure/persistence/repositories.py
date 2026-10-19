@@ -1,8 +1,9 @@
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from confluencr.domain.repositories import TransactionRepository
-from confluencr.domain.transaction import Transaction
+from confluencr.domain.transaction import Transaction, TransactionStatus
 from confluencr.infrastructure.persistence.models import TransactionModel
 
 
@@ -13,6 +14,12 @@ class SqlAlchemyTransactionRepository(TransactionRepository):
     def get(self, transaction_id: str) -> Transaction | None:
         model = self._session.get(TransactionModel, transaction_id)
         return self._to_domain(model) if model else None
+
+    def list_processing(self) -> list[str]:
+        statement = select(TransactionModel.transaction_id).where(
+            TransactionModel.status == TransactionStatus.PROCESSING
+        )
+        return list(self._session.scalars(statement))
 
     def create_if_absent(self, transaction: Transaction) -> bool:
         model = TransactionModel(

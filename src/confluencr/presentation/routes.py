@@ -1,7 +1,9 @@
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import FileResponse
 
 from confluencr.application.services import TransactionApplicationService
 from confluencr.domain.exceptions import TransactionNotFoundError
@@ -14,6 +16,16 @@ from confluencr.presentation.schemas import (
 )
 
 router = APIRouter()
+
+
+@router.get("/", response_model=None)
+def root(request: Request) -> HealthResponse | FileResponse:
+    """Keep the assessment health contract while serving the browser UI."""
+    frontend_index = Path.cwd() / "frontend" / "dist" / "index.html"
+    accepts_html = "text/html" in request.headers.get("accept", "")
+    if accepts_html and frontend_index.is_file():
+        return FileResponse(frontend_index, media_type="text/html")
+    return HealthResponse(status="HEALTHY", current_time=datetime.now(UTC))
 
 
 @router.get("/healthz", response_model=HealthResponse)

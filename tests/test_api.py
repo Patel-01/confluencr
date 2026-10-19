@@ -1,5 +1,7 @@
 import time
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 PAYLOAD = {
@@ -21,11 +23,40 @@ def _wait_for_status(client: TestClient, transaction_id: str, expected: str) -> 
 
 
 def test_health_check(client: TestClient) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "HEALTHY"
+    assert response.json()["current_time"]
+
     response = client.get("/healthz")
 
     assert response.status_code == 200
     assert response.json()["status"] == "HEALTHY"
     assert response.json()["current_time"]
+
+
+@pytest.mark.skipif(
+    not Path("frontend/dist/index.html").is_file(),
+    reason="frontend production bundle is built separately",
+)
+def test_browser_root_serves_frontend(client: TestClient) -> None:
+    response = client.get("/", headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert "Transaction Console" in response.text
+
+
+def test_webhook_is_accepted_within_500ms(client: TestClient) -> None:
+    started_at = time.perf_counter()
+    response = client.post(
+        "/v1/webhooks/transactions",
+        json={**PAYLOAD, "transaction_id": "txn_latency"},
+    )
+    elapsed_seconds = time.perf_counter() - started_at
+
+    assert response.status_code == 202
+    assert elapsed_seconds < 0.5
 
 
 def test_webhook_is_accepted_and_processed(client: TestClient) -> None:

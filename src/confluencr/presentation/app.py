@@ -34,6 +34,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        recovery_repository = repository_factory()
+        try:
+            for transaction_id in recovery_repository.list_processing():
+                processor.submit(transaction_id)
+        finally:
+            recovery_repository.close()
         yield
         processor.shutdown()
         engine.dispose()
@@ -53,7 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     frontend_dist = Path.cwd() / "frontend" / "dist"
     if frontend_dist.is_dir():
-        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
+        app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
 
     return app
 
