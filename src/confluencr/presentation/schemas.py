@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field, field_validator
 
+from confluencr.domain.session import SessionSummary
 from confluencr.domain.transaction import Transaction
 
 
@@ -57,4 +58,37 @@ class TransactionResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     current_time: datetime
+
+
+class SessionActivityResponse(BaseModel):
+    method: str
+    path: str
+    status_code: int
+    created_at: datetime
+
+
+class SessionSummaryResponse(BaseModel):
+    session_id: str
+    total_api_calls: int
+    first_seen_at: datetime | None
+    last_seen_at: datetime | None
+    recent_activity: list[SessionActivityResponse]
+
+    @classmethod
+    def from_domain(cls, summary: SessionSummary) -> "SessionSummaryResponse":
+        return cls(
+            session_id=summary.session_id,
+            total_api_calls=summary.total_api_calls,
+            first_seen_at=summary.first_seen_at,
+            last_seen_at=summary.last_seen_at,
+            recent_activity=[
+                SessionActivityResponse(
+                    method=activity.method,
+                    path=activity.path,
+                    status_code=activity.status_code,
+                    created_at=activity.created_at,
+                )
+                for activity in summary.recent_activity
+            ],
+        )
 

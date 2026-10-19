@@ -22,6 +22,8 @@ The in-process worker is intentionally replaceable. Transactions are persisted b
 
 The deployed cloud database is Render PostgreSQL. For local development, SQLite remains the default. Supabase remains supported through the same `DATABASE_URL` setting if the service is moved back to the shared `cupcat` database.
 
+The React client creates an anonymous UUID per browser profile and sends it as `X-Session-ID`. The API stores only session-level activity metadata (`client_sessions` and `session_activities`), not request payloads. `GET /v1/session/summary` returns the call count and recent API activity for that browser session, which keeps the transaction console useful across refreshes without requiring login.
+
 ## Run locally
 
 ```powershell
@@ -58,6 +60,9 @@ Invoke-RestMethod -Method Post `
   -Body '{"transaction_id":"txn_abc123","source_account":"acc_user","destination_account":"acc_merchant","amount":1500,"currency":"INR"}'
 
 Invoke-RestMethod http://localhost:8000/v1/transactions/txn_abc123
+
+Invoke-RestMethod http://localhost:8000/v1/session/summary `
+  -Headers @{'X-Session-ID'='00000000-0000-0000-0000-000000000001'}
 ```
 
 The webhook returns `202 Accepted` immediately. New transactions are initially `PROCESSING` and become `PROCESSED` after the configured delay.

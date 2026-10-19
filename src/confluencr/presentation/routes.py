@@ -6,10 +6,15 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
 
 from confluencr.application.services import TransactionApplicationService
+from confluencr.application.session import SessionAnalyticsService
 from confluencr.domain.exceptions import TransactionNotFoundError
-from confluencr.presentation.dependencies import get_transaction_service
+from confluencr.presentation.dependencies import (
+    get_session_analytics_service,
+    get_transaction_service,
+)
 from confluencr.presentation.schemas import (
     HealthResponse,
+    SessionSummaryResponse,
     TransactionResponse,
     TransactionWebhookRequest,
     WebhookAcceptedResponse,
@@ -31,6 +36,17 @@ def root(request: Request) -> HealthResponse | FileResponse:
 @router.get("/healthz", response_model=HealthResponse)
 def health_check() -> HealthResponse:
     return HealthResponse(status="HEALTHY", current_time=datetime.now(UTC))
+
+
+@router.get("/v1/session/summary", response_model=SessionSummaryResponse)
+def get_session_summary(
+    request: Request,
+    analytics_service: Annotated[
+        SessionAnalyticsService, Depends(get_session_analytics_service)
+    ],
+) -> SessionSummaryResponse:
+    summary = analytics_service.get_summary(request.state.client_session_id)
+    return SessionSummaryResponse.from_domain(summary)
 
 
 @router.post(

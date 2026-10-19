@@ -7,10 +7,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from confluencr.application.services import TransactionProcessingService
+from confluencr.application.session import SessionAnalyticsService
 from confluencr.core.config import Settings, get_settings
 from confluencr.core.database import Base, create_database_engine, create_session_factory
-from confluencr.infrastructure.persistence.repositories import SqlAlchemyTransactionRepository
+from confluencr.infrastructure.persistence.repositories import (
+    SqlAlchemySessionRepository,
+    SqlAlchemyTransactionRepository,
+)
 from confluencr.infrastructure.workers.in_process import InProcessTransactionProcessor
+from confluencr.presentation.middleware import SessionTrackingMiddleware
 from confluencr.presentation.routes import router
 
 
@@ -31,6 +36,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         processing_service=processing_service,
         max_workers=runtime_settings.worker_max_workers,
     )
+    session_analytics_service = SessionAnalyticsService(
+        repository_factory=lambda: SqlAlchemySessionRepository(session_factory()),
+        max_workers=runtime_settings.worker_max_workers,
+    )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -42,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             recovery_repository.close()
         yield
         processor.shutdown()
+        session_analytics_service.shutdown()
         engine.dispose()
 
     app = FastAPI(title=runtime_settings.app_name, lifespan=lifespan)
@@ -51,9 +61,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Session-ID"],
+    )
+    app.add_middleware(
+        SessionTrackingMiddleware,
+        analytics_service=session_analytics_service,
     )
     app.state.session_factory = session_factory
     app.state.transaction_processor = processor
+    app.state.session_analytics_service = session_analytics_service
     app.state.engine = engine
     app.include_router(router)
 

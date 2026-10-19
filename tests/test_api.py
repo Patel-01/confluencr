@@ -91,3 +91,29 @@ def test_invalid_webhook_is_rejected(client: TestClient) -> None:
 
     assert response.status_code == 422
 
+
+def test_session_summary_tracks_business_api_calls(client: TestClient) -> None:
+    session_id = "00000000-0000-0000-0000-000000000001"
+    headers = {"X-Session-ID": session_id}
+
+    response = client.post(
+        "/v1/webhooks/transactions",
+        json={**PAYLOAD, "transaction_id": "txn_session_tracking"},
+        headers=headers,
+    )
+
+    assert response.status_code == 202
+    summary = None
+    for _ in range(50):
+        summary_response = client.get("/v1/session/summary", headers=headers)
+        assert summary_response.status_code == 200
+        summary = summary_response.json()
+        if summary["total_api_calls"] >= 1:
+            break
+        time.sleep(0.01)
+
+    assert summary is not None
+    assert summary["session_id"] == session_id
+    assert summary["total_api_calls"] >= 1
+    assert summary["recent_activity"][0]["path"] == "/v1/webhooks/transactions"
+
