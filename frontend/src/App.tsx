@@ -16,11 +16,16 @@ const initialForm = {
   amount: 1500,
   currency: "INR",
 };
+const trackedTransactionStorageKey = "confluencr.tracked_transaction_id";
+
+function getStoredTrackedTransactionId(): string {
+  return window.localStorage.getItem(trackedTransactionStorageKey) ?? "";
+}
 
 function App() {
   const [form, setForm] = useState(initialForm);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
-  const [trackedId, setTrackedId] = useState("");
+  const [trackedId, setTrackedId] = useState(getStoredTrackedTransactionId);
   const [health, setHealth] = useState("Checking API...");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,6 +85,7 @@ function App() {
     try {
       const accepted = await submitTransaction(form);
       setTrackedId(accepted.transaction_id);
+      window.localStorage.setItem(trackedTransactionStorageKey, accepted.transaction_id);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Request failed");
     } finally {
