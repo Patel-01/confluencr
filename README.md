@@ -20,7 +20,7 @@ infrastructure  domain ports
 
 The in-process worker is intentionally replaceable. Transactions are persisted before acknowledgement, and `PROCESSING` rows are re-queued when the service starts, so a restart does not lose accepted work. A durable external queue/worker would still be the next scale-out step for high-volume production workloads.
 
-The shared cloud database is Supabase PostgreSQL. For local development, SQLite remains the default. To use Supabase, set `DATABASE_URL` to the PostgreSQL connection string from the Supabase dashboard and keep that value server-side.
+The deployed cloud database is Render PostgreSQL. For local development, SQLite remains the default. Supabase remains supported through the same `DATABASE_URL` setting if the service is moved back to the shared `cupcat` database.
 
 ## Run locally
 
@@ -72,7 +72,7 @@ mypy src
 
 Tests override the processing delay to keep the suite fast and deterministic.
 
-## Supabase database setup
+## Optional Supabase database setup
 
 The `cupcat` project owns the linked Supabase migration history. Its transaction migration must be applied before pointing this service at the cloud database:
 
@@ -92,5 +92,5 @@ The public deployment uses one Docker web service. The image builds the React fr
 - Health: `https://confluencr-api.onrender.com/healthz`
 - API docs: `https://confluencr-api.onrender.com/docs`
 
-Set the Render service variable `DATABASE_URL` to the Supabase PostgreSQL connection string before using the deployment for durable cloud storage. Without it, the service uses its local SQLite fallback, which is suitable only for a short-lived demo.
+The Render service has `DATABASE_URL` configured with the internal Render PostgreSQL connection string. The current free Render database is scheduled to expire on November 18, 2026; upgrade or replace it before that date for continued persistence.
 
