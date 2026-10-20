@@ -66,8 +66,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return result.data;
 }
 
-export function getHealth(): Promise<{ status: string; current_time: string }> {
-  return request("/");
+export function getHealth(signal?: AbortSignal): Promise<{ status: string; current_time: string }> {
+  return request("/", { signal, cache: "no-store" });
 }
 
 export interface SessionActivity {

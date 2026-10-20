@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
-  getHealth,
   getTransactions,
   submitTransaction,
 } from "./api";
@@ -9,6 +8,7 @@ import type { TransactionPayload } from "./api";
 import { TransactionForm } from "./TransactionForm";
 import type { ApiEvidence } from "./TransactionForm";
 import { TransactionMonitor } from "./TransactionMonitor";
+import { useApiHealth } from "./useApiHealth";
 import { useTransactionMonitor } from "./useTransactionMonitor";
 
 const trackedTransactionStorageKey = "confluencr.tracked_transaction_id";
@@ -20,16 +20,10 @@ function getStoredTrackedTransactionId(): string {
 function App() {
   const [trackedId, setTrackedId] = useState(getStoredTrackedTransactionId);
   const { transaction, error: monitorError } = useTransactionMonitor(trackedId);
-  const [health, setHealth] = useState("Checking API...");
+  const health = useApiHealth();
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiEvidence, setApiEvidence] = useState<ApiEvidence | null>(null);
-
-  useEffect(() => {
-    getHealth()
-      .then((result) => setHealth(result.status))
-      .catch(() => setHealth("OFFLINE"));
-  }, []);
 
   async function handleSubmit(form: TransactionPayload) {
     setSubmitError("");
@@ -71,7 +65,7 @@ function App() {
         </div>
         <div className={`health-pill ${health === "HEALTHY" ? "healthy" : ""}`}>
           <span className="health-dot" />
-          API {health}
+          {health === "HEALTHY" ? "API HEALTHY" : `API ${health}`}
         </div>
       </section>
 
