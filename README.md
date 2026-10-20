@@ -4,7 +4,7 @@ Clean, OOP-oriented FastAPI boilerplate for receiving transaction webhooks and p
 
 ## Demo
 
-[Watch the cinematic full-stack walkthrough](https://youtu.be/8D1t8_wqux8) to see a transaction submitted, acknowledged, processed in the background, and explored through the API documentation.
+[Watch the full-stack transaction demo](https://youtu.be/8D1t8_wqux8) to see a transaction submitted, acknowledged, processed in the background, and explored through the API documentation.
 
 ## Architecture
 
