@@ -1,6 +1,9 @@
 from datetime import UTC, datetime
+from typing import Any, cast
+from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -22,9 +25,14 @@ class SqlAlchemyTransactionRepository(TransactionRepository):
         model = self._session.get(TransactionModel, transaction_id)
         return self._to_domain(model) if model else None
 
-    def list_processing(self) -> list[str]:
+    def list_runnable(self, now: datetime) -> list[str]:
         statement = select(TransactionModel.transaction_id).where(
-            TransactionModel.status == TransactionStatus.PROCESSING
+            TransactionModel.status == TransactionStatus.PROCESSING,
+            or_(
+                TransactionModel.next_attempt_at.is_(None),
+                TransactionModel.next_attempt_at <= now,
+            ),
+            or_(TransactionModel.lease_until.is_(None), TransactionModel.lease_until <= now),
         )
         return list(self._session.scalars(statement))
 
@@ -44,19 +52,97 @@ class SqlAlchemyTransactionRepository(TransactionRepository):
             self._session.commit()
         except IntegrityError:
             self._session.rollback()
-            return False
+            if self._session.get(TransactionModel, transaction.transaction_id) is not None:
+                return False
+            raise
         return True
 
-    def mark_processed(self, transaction_id: str) -> Transaction | None:
-        model = self._session.get(TransactionModel, transaction_id)
-        if model is None:
-            return None
-        domain_transaction = self._to_domain(model)
-        domain_transaction.mark_processed()
-        model.status = domain_transaction.status
-        model.processed_at = domain_transaction.processed_at
+    def mark_processed(self, transaction_id: str, *, lease_token: str) -> Transaction | None:
+        processed_at = datetime.now(UTC)
+        statement = (
+            update(TransactionModel)
+            .where(
+                TransactionModel.transaction_id == transaction_id,
+                TransactionModel.status == TransactionStatus.PROCESSING,
+                TransactionModel.lease_token == lease_token,
+            )
+            .values(
+                status=TransactionStatus.PROCESSED,
+                processed_at=processed_at,
+                lease_until=None,
+                lease_token=None,
+                next_attempt_at=None,
+                last_error=None,
+            )
+        )
+        result = cast(CursorResult[Any], self._session.execute(statement))
         self._session.commit()
-        return domain_transaction
+        if result.rowcount != 1:
+            return None
+        model = self._session.get(TransactionModel, transaction_id)
+        return self._to_domain(model) if model else None
+
+    def claim_for_processing(
+        self, transaction_id: str, *, now: datetime, lease_until: datetime
+    ) -> str | None:
+        lease_token = str(uuid4())
+        statement = (
+            update(TransactionModel)
+            .where(
+                TransactionModel.transaction_id == transaction_id,
+                TransactionModel.status == TransactionStatus.PROCESSING,
+                or_(
+                    TransactionModel.next_attempt_at.is_(None),
+                    TransactionModel.next_attempt_at <= now,
+                ),
+                or_(TransactionModel.lease_until.is_(None), TransactionModel.lease_until <= now),
+            )
+            .values(
+                attempt_count=TransactionModel.attempt_count + 1,
+                lease_until=lease_until,
+                lease_token=lease_token,
+                next_attempt_at=None,
+            )
+        )
+        result = cast(CursorResult[Any], self._session.execute(statement))
+        self._session.commit()
+        return lease_token if result.rowcount == 1 else None
+
+    def record_failure(
+        self,
+        transaction_id: str,
+        *,
+        lease_token: str,
+        error: str,
+        max_attempts: int,
+        retry_at: datetime,
+    ) -> TransactionStatus | None:
+        model = self._session.get(TransactionModel, transaction_id)
+        if model is None or model.lease_token != lease_token:
+            return None
+        status = (
+            TransactionStatus.FAILED
+            if model.attempt_count >= max_attempts
+            else TransactionStatus.PROCESSING
+        )
+        statement = (
+            update(TransactionModel)
+            .where(
+                TransactionModel.transaction_id == transaction_id,
+                TransactionModel.status == TransactionStatus.PROCESSING,
+                TransactionModel.lease_token == lease_token,
+            )
+            .values(
+                status=status,
+                lease_until=None,
+                lease_token=None,
+                next_attempt_at=None if status is TransactionStatus.FAILED else retry_at,
+                last_error=error[:2000],
+            )
+        )
+        result = cast(CursorResult[Any], self._session.execute(statement))
+        self._session.commit()
+        return status if result.rowcount == 1 else None
 
     def close(self) -> None:
         self._session.close()
@@ -98,11 +184,15 @@ class SqlAlchemySessionRepository(SessionRepository):
                 client_session = self._session.get(ClientSessionModel, session_id)
                 if client_session is None:
                     raise
-                client_session.last_seen_at = now
-                client_session.total_api_calls += 1
-        else:
-            client_session.last_seen_at = now
-            client_session.total_api_calls += 1
+        if client_session is not None:
+            self._session.execute(
+                update(ClientSessionModel)
+                .where(ClientSessionModel.session_id == session_id)
+                .values(
+                    last_seen_at=now,
+                    total_api_calls=ClientSessionModel.total_api_calls + 1,
+                )
+            )
         self._session.add(
             SessionActivityModel(
                 session_id=session_id,

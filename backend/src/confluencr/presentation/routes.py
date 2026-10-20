@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -12,6 +11,7 @@ from confluencr.presentation.dependencies import (
     get_session_analytics_service,
     get_transaction_service,
 )
+from confluencr.presentation.frontend_assets import frontend_dist_path
 from confluencr.presentation.schemas import (
     HealthResponse,
     SessionSummaryResponse,
@@ -26,7 +26,7 @@ router = APIRouter()
 @router.get("/", response_model=None)
 def root(request: Request) -> HealthResponse | FileResponse:
     """Keep the assessment health contract while serving the browser UI."""
-    frontend_index = Path.cwd() / "frontend" / "dist" / "index.html"
+    frontend_index = frontend_dist_path() / "index.html"
     accepts_html = "text/html" in request.headers.get("accept", "")
     if accepts_html and frontend_index.is_file():
         return FileResponse(frontend_index, media_type="text/html")

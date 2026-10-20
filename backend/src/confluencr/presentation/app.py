@@ -1,6 +1,5 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,12 +8,13 @@ from fastapi.staticfiles import StaticFiles
 from confluencr.application.services import TransactionProcessingService
 from confluencr.application.session import SessionAnalyticsService
 from confluencr.core.config import Settings, get_settings
-from confluencr.core.database import Base, create_database_engine, create_session_factory
+from confluencr.core.database import create_database_engine, create_session_factory
 from confluencr.infrastructure.persistence.repositories import (
     SqlAlchemySessionRepository,
     SqlAlchemyTransactionRepository,
 )
 from confluencr.infrastructure.workers.in_process import InProcessTransactionProcessor
+from confluencr.presentation.frontend_assets import frontend_dist_path
 from confluencr.presentation.middleware import SessionTrackingMiddleware
 from confluencr.presentation.routes import router
 
@@ -23,17 +23,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     runtime_settings = settings or get_settings()
     engine = create_database_engine(runtime_settings.database_url)
     session_factory = create_session_factory(engine)
-    Base.metadata.create_all(engine)
-
     def repository_factory() -> SqlAlchemyTransactionRepository:
         return SqlAlchemyTransactionRepository(session_factory())
 
     processing_service = TransactionProcessingService(
         repository_factory=repository_factory,
         delay_seconds=runtime_settings.processing_delay_seconds,
+        lease_seconds=runtime_settings.worker_lease_seconds,
+        max_attempts=runtime_settings.worker_max_attempts,
     )
     processor = InProcessTransactionProcessor(
         processing_service=processing_service,
+        repository_factory=repository_factory,
         max_workers=runtime_settings.worker_max_workers,
     )
     session_analytics_service = SessionAnalyticsService(
@@ -43,12 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        recovery_repository = repository_factory()
-        try:
-            for transaction_id in recovery_repository.list_processing():
-                processor.submit(transaction_id)
-        finally:
-            recovery_repository.close()
+        processor.start()
         yield
         processor.shutdown()
         session_analytics_service.shutdown()
@@ -73,7 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.include_router(router)
 
-    frontend_dist = Path.cwd() / "frontend" / "dist"
+    frontend_dist = frontend_dist_path()
     if frontend_dist.is_dir():
         app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
 

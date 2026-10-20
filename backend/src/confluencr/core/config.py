@@ -22,6 +22,8 @@ class Settings(BaseSettings):
         default=30.0, validation_alias="PROCESSING_DELAY_SECONDS", ge=0
     )
     worker_max_workers: int = Field(default=4, validation_alias="WORKER_MAX_WORKERS", ge=1)
+    worker_lease_seconds: int = Field(default=120, validation_alias="WORKER_LEASE_SECONDS", ge=1)
+    worker_max_attempts: int = Field(default=3, validation_alias="WORKER_MAX_ATTEMPTS", ge=1)
 
 
 @lru_cache

@@ -4,6 +4,16 @@ Clean, OOP-oriented FastAPI boilerplate for receiving transaction webhooks and p
 
 ## Architecture
 
+The repository keeps the two application halves visible at the top level:
+
+```text
+backend/    FastAPI service, Python package, and backend tests
+frontend/   React transaction console
+Dockerfile  Builds and serves both as one Render web service
+```
+
+Backend implementation lives in `backend/src/confluencr/` and tests live in `backend/tests/`.
+
 The code is organized around dependency direction:
 
 ```text
@@ -18,20 +28,22 @@ infrastructure  domain ports
 - `infrastructure` contains SQLAlchemy persistence and the in-process worker implementation.
 - `presentation` contains HTTP schemas, routes, dependency wiring, and application composition.
 
-The in-process worker is intentionally replaceable. Transactions are persisted before acknowledgement, and `PROCESSING` rows are re-queued when the service starts, so a restart does not lose accepted work. A durable external queue/worker would still be the next scale-out step for high-volume production workloads.
+The in-process worker is intentionally replaceable. Transactions are persisted before acknowledgement; database polling rediscovers due work and retries, including after restarts. Atomic claims with expiring, unique lease tokens prevent multiple service processes or stale workers from overwriting each other. This keeps accepted work recoverable without a separate broker, while a dedicated queue/worker remains a sensible scale-out step for higher-volume production workloads.
 
-The deployed cloud database is Render PostgreSQL. For local development, SQLite remains the default. Supabase remains supported through the same `DATABASE_URL` setting if the service is moved back to the shared `cupcat` database.
+The deployed cloud database is Render PostgreSQL. For local development, SQLite remains the default. Alembic migrations manage schema changes; application startup does not mutate the schema. Supabase remains supported through the same `DATABASE_URL` setting if the service is moved back to the shared `cupcat` database.
 
 The React client creates an anonymous UUID per browser profile and sends it as `X-Session-ID`. The API stores only session-level activity metadata (`client_sessions` and `session_activities`), not request payloads. `GET /v1/session/summary` returns the call count and recent API activity for that browser session, which keeps the transaction console useful across refreshes without requiring login.
 
 ## Run locally
 
 ```powershell
+cd backend
 py -m venv .venv
 .\\.venv\\Scripts\\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 Copy-Item .env.example .env
+alembic upgrade head
 uvicorn confluencr.main:app --reload
 ```
 
@@ -48,6 +60,8 @@ npm run dev
 ```
 
 The React client starts at `http://localhost:5173`. Set `VITE_API_BASE_URL` if the API is running somewhere other than `http://localhost:8000`.
+
+Run frontend tests and the production build from `frontend/` with `npm test` and `npm run build`.
 
 For production, the Docker image builds the React bundle and FastAPI serves it from the same origin when the browser requests HTML. API clients requesting JSON from `/` still receive the assessment health response. This keeps the deployed assessment app to one Render web service.
 
@@ -70,6 +84,7 @@ The webhook returns `202 Accepted` immediately. New transactions are initially `
 ## Test and quality checks
 
 ```powershell
+cd backend
 pytest
 ruff check .
 mypy src
@@ -86,6 +101,8 @@ cd C:\Users\PANKAJ\cupcat
 npx.cmd supabase db push --dry-run
 npx.cmd supabase db push
 ```
+
+The service's local environment template is `backend/.env.example`.
 
 Do not put a Supabase service-role key or database password in `VITE_` variables or commit them to Git.
 

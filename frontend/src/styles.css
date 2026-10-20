@@ -33,6 +33,12 @@ input:focus { border-color: #7480ee; box-shadow: 0 0 0 4px rgba(116,128,238,.12)
 button { width: 100%; margin-top: 8px; padding: 14px 18px; border: 0; border-radius: 11px; color: white; background: #5e68dc; cursor: pointer; font-weight: 800; transition: transform .2s, background .2s; }
 button:hover:not(:disabled) { background: #4d57c9; transform: translateY(-1px); }
 button:disabled { cursor: wait; opacity: .6; }
+.api-evidence { margin-top: 18px; padding: 14px; border: 1px solid #dfe3ee; border-radius: 13px; background: #f7f8fd; }
+.api-evidence-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.api-evidence-heading .section-label { margin-bottom: 6px; }
+.api-evidence-heading strong { color: #283452; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.response-code { flex: 0 0 auto; padding: 6px 8px; border-radius: 999px; color: #177348; background: #e4f7ec; font-size: 10px; font-weight: 800; }
+.api-evidence pre { margin: 12px 0 0; overflow: auto; color: #5e68da; font: 600 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
 .error-message { margin: 16px 0 0; color: #c04444; font-size: 13px; }
 .status-card { min-height: 430px; }
 .status-badge { padding: 8px 11px; color: #a26a17; background: #fff2d3; }
