@@ -2,6 +2,10 @@
 
 Clean, OOP-oriented FastAPI boilerplate for receiving transaction webhooks and processing them asynchronously.
 
+## Demo
+
+[Watch the cinematic full-stack walkthrough](https://youtu.be/8D1t8_wqux8) to see a transaction submitted, acknowledged, processed in the background, and explored through the API documentation.
+
 ## Architecture
 
 The repository keeps the two application halves visible at the top level:
